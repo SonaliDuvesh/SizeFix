@@ -1,8 +1,6 @@
 # SizeFix - Advanced File Optimization & Conversion Engine
 
-<div align="center">
-
-```
+```text
   ____  ___ _____ _____ _____ ___ _  __
  / ___||_ _|__  /| ____|  ___|_ _|\ \/ /
  \___ \ | |  / / |  _| | |_   | |  \  / 
@@ -10,18 +8,21 @@
  |____/|___/____||_____|_|   |___|/_/\_\
 ```
 
-**Local-First • Byte-Precision Target Matching • Universal Format Transcoding • 100% Private**
+<p align="center">
+  <strong>Local-First • Byte-Precision Target Matching • Universal Format Transcoding • 100% Private</strong>
+</p>
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![React](https://img.shields.io/badge/React-19.0-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Vite](https://img.shields.io/badge/Vite-8.3-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev)
-[![PyMuPDF](https://img.shields.io/badge/PyMuPDF-1.25+-E11D48?style=for-the-badge&logo=adobe-acrobat-reader&logoColor=white)](https://pymupdf.readthedocs.io)
-[![Pillow](https://img.shields.io/badge/Pillow-11.1+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python-pillow.org)
-
-</div>
+<p align="center">
+  <a href="https://fastapi.tiangolo.com"><img src="https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" /></a>
+  <a href="https://react.dev"><img src="https://img.shields.io/badge/React-19.0-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" /></a>
+  <a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" /></a>
+  <a href="https://vitejs.dev"><img src="https://img.shields.io/badge/Vite-8.3-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite" /></a>
+  <a href="https://pymupdf.readthedocs.io"><img src="https://img.shields.io/badge/PyMuPDF-1.25+-E11D48?style=for-the-badge&logo=adobe-acrobat-reader&logoColor=white" alt="PyMuPDF" /></a>
+  <a href="https://python-pillow.org"><img src="https://img.shields.io/badge/Pillow-11.1+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Pillow" /></a>
+</p>
 
 ---
+
 ## Executive Summary
 
 **SizeFix** is an ultra-fast, local-first file processing suite engineered for strict target size control and seamless format conversions. Built from the ground up with high-performance Python engines (`Pillow`, `PyMuPDF`, `pillow-heif`) and a tactile Neo-Brutalist React frontend, SizeFix eliminates the guesswork of portal uploads, government forms, archival standards, and web distribution limits.
@@ -29,11 +30,12 @@
 No telemetry. No third-party cloud uploads. Zero data leaves your machine.
 
 ---
+
 ## Key Highlights
 
-- **Sub-Percent Target Precision**: Proprietary **Two-Phase Binary Search + Micro-Scale Tuning** guarantees output within $\pm 0.5\%$ of exact user-specified targets (`B`, `KB`, `MB`, `GB`).
+- **Sub-Percent Target Precision**: Proprietary **Two-Phase Binary Search + Micro-Scale Tuning** guarantees output within ±0.5% of exact user-specified targets (`B`, `KB`, `MB`, `GB`).
 - **Bidirectional Target Control**: Supports lossless compression, smart deflation, as well as standards-compliant size expansion (up to `999 KB+`) via non-destructive stream padding.
-- **Neo-Brutalist Aesthetic**: Strict `0px` border-radius geometry with a vibrant Raspberry palette (`#FFF5F8` → `#C92F5B`), dark mode support, and tactile $4\text{px}$ offset shadows.
+- **Neo-Brutalist Aesthetic**: Strict `0px` border-radius geometry with a vibrant Raspberry palette (`#FFF5F8` → `#C92F5B`), dark mode support, and tactile 4px offset shadows.
 - **Universal Cross-Platform Responsiveness**: Engineered for flawless touch and mouse workflows across Windows, macOS, Linux, iOS, and Android.
 - **100% Local & Ephemeral**: Direct streaming architecture with automated zero-footprint memory management and instant disk cleanup.
 
@@ -250,7 +252,7 @@ tests/test_size_parser.py::test_parse_target_input_unified PASSED        [89%]
 | `--bg-main` | `#FFF5F8` / `#1D0811` | Primary workspace canvas |
 | `--bg-surface` | `#FFE9F0` / `#2C0E1C` | Elevated secondary surfaces |
 | `--strong-raspberry` | `#C92F5B` / `#E94F7A` | Primary CTA, active badges, progress tracks |
-| `--border-color` | `#35141F` / `#FFB6C1` | Sharp $2\text{px}$ architectural strokes |
+| `--border-color` | `#35141F` / `#FFB6C1` | Sharp 2px architectural strokes |
 | `--shadow-main` | `4px 4px 0px var(--border)` | Neo-Brutalist offset tactile drop shadow |
 | `--radius` | `0px` | Strict perpendicular geometry |
 
@@ -259,5 +261,5 @@ tests/test_size_parser.py::test_parse_target_input_unified PASSED        [89%]
 
 - **Zero Remote Dependencies**: Works completely offline. No third-party analytics or external CDNs required.
 - **EXIF Stripping**: Optional automated purge of GPS coordinates, device serial numbers, camera maker notes, and author metadata.
-- **Resource Guardrails**: Strict streaming caps ($200\text{ MB}$ per payload) and deterministic garbage collection prevent memory exhaustion.
+- **Resource Guardrails**: Strict streaming caps (200 MB per payload) and deterministic garbage collection prevent memory exhaustion.
 
