@@ -2,17 +2,43 @@ import type { FileAnalysisResult, ProcessRequestOptions, ProcessResult, Supporte
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
+async function handleApiResponse<T>(res: Response, defaultError: string): Promise<T> {
+  const contentType = res.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || data.error_code || `${defaultError} (HTTP ${res.status})`);
+    }
+    return data as T;
+  }
+
+  // If response is HTML or text (e.g. 404 from Vercel edge or 502 Bad Gateway)
+  const text = await res.text().catch(() => "");
+  if (!res.ok) {
+    if (res.status === 404) {
+      throw new Error(
+        "Backend API not found (HTTP 404). If deployed on Vercel, ensure the FastAPI backend is deployed (e.g., on Render/Railway) and set VITE_API_BASE in Vercel Environment Variables."
+      );
+    }
+    if (res.status === 502 || res.status === 503) {
+      throw new Error("Backend service is currently unavailable or starting up. Please try again in a moment.");
+    }
+    const cleanMsg = text.replace(/<[^>]*>?/gm, "").trim().slice(0, 120);
+    throw new Error(cleanMsg || `${defaultError} (HTTP ${res.status})`);
+  }
+
+  throw new Error("Received invalid non-JSON response from server.");
+}
+
 export class ApiService {
   static async checkHealth(): Promise<{ status: string }> {
     const res = await fetch(`${API_BASE}/health`);
-    if (!res.ok) throw new Error("Backend server is not responding");
-    return res.json();
+    return handleApiResponse<{ status: string }>(res, "Backend server is not responding");
   }
 
   static async getSupportedFormats(): Promise<SupportedFormatsResponse> {
     const res = await fetch(`${API_BASE}/supported-formats`);
-    if (!res.ok) throw new Error("Failed to fetch supported formats");
-    return res.json();
+    return handleApiResponse<SupportedFormatsResponse>(res, "Failed to fetch supported formats");
   }
 
   static async analyzeFile(file: File): Promise<FileAnalysisResult> {
@@ -24,11 +50,7 @@ export class ApiService {
       body: formData,
     });
 
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.message || data.error_code || "Failed to analyze file");
-    }
-    return data;
+    return handleApiResponse<FileAnalysisResult>(res, "Failed to analyze file");
   }
 
   static async processFile(file: File, options: ProcessRequestOptions): Promise<ProcessResult> {
@@ -58,11 +80,7 @@ export class ApiService {
       body: formData,
     });
 
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.message || data.error_code || "Processing failed");
-    }
-    return data;
+    return handleApiResponse<ProcessResult>(res, "Processing failed");
   }
 
   static getDownloadUrl(fileId: string): string {
