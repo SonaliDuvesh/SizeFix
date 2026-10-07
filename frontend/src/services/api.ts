@@ -1,6 +1,7 @@
 import type { FileAnalysisResult, ProcessRequestOptions, ProcessResult, SupportedFormatsResponse } from "../types";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "";
+const rawBase = (import.meta.env.VITE_API_BASE as string | undefined)?.trim() || "";
+const API_BASE = rawBase.replace(/\/+$/, "");
 
 async function handleApiResponse<T>(res: Response, defaultError: string): Promise<T> {
   const contentType = res.headers.get("content-type") || "";
@@ -12,16 +13,16 @@ async function handleApiResponse<T>(res: Response, defaultError: string): Promis
     return data as T;
   }
 
-  // If response is HTML or text (e.g. 404 from Vercel edge or 502 Bad Gateway)
+  // If response is HTML or text (e.g. 404/405 from Vercel edge rewrite or 502 Bad Gateway)
   const text = await res.text().catch(() => "");
   if (!res.ok) {
-    if (res.status === 404) {
+    if (res.status === 404 || res.status === 405) {
       throw new Error(
-        "Backend API not found (HTTP 404). If deployed on Vercel, ensure the FastAPI backend is deployed (e.g., on Render/Railway) and set VITE_API_BASE in Vercel Environment Variables."
+        `Backend API unreachable (${res.status === 405 ? "HTTP 405 Method Not Allowed" : "HTTP 404 Not Found"}). Make sure 'VITE_API_BASE' is configured with your Render backend URL (e.g. https://your-backend.onrender.com) in Vercel Environment Variables, and then redeploy the frontend on Vercel.`
       );
     }
     if (res.status === 502 || res.status === 503) {
-      throw new Error("Backend service is currently unavailable or starting up. Please try again in a moment.");
+      throw new Error("Backend service on Render is sleeping or starting up. Free Render instances sleep after inactivity; please wait ~30 seconds and try again.");
     }
     const cleanMsg = text.replace(/<[^>]*>?/gm, "").trim().slice(0, 120);
     throw new Error(cleanMsg || `${defaultError} (HTTP ${res.status})`);
