@@ -1,13 +1,19 @@
 import React from "react";
-import { Moon, Sun, HelpCircle, ShieldCheck } from "lucide-react";
+import { Moon, Sun, HelpCircle, ShieldCheck, Server } from "lucide-react";
 
 interface HeaderProps {
   darkMode: boolean;
   onToggleTheme: () => void;
   onOpenHelp: () => void;
+  onOpenServerSettings: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ darkMode, onToggleTheme, onOpenHelp }) => {
+export const Header: React.FC<HeaderProps> = ({
+  darkMode,
+  onToggleTheme,
+  onOpenHelp,
+  onOpenServerSettings,
+}) => {
   return (
     <header className="box-card mb-6" style={{ padding: "1rem 1.5rem" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
@@ -44,12 +50,22 @@ export const Header: React.FC<HeaderProps> = ({ darkMode, onToggleTheme, onOpenH
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+          <button
+            onClick={onOpenServerSettings}
+            className="btn-secondary"
+            title="Backend Server Settings & Status"
+            style={{ padding: "0.5rem 0.85rem", display: "flex", alignItems: "center", gap: "0.35rem" }}
+          >
+            <Server size={16} />
+            <span style={{ fontSize: "0.8rem" }}>SERVER</span>
+          </button>
+
           <button
             onClick={onToggleTheme}
             className="btn-secondary"
             title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            style={{ padding: "0.5rem 0.85rem" }}
+            style={{ padding: "0.5rem 0.85rem", display: "flex", alignItems: "center", gap: "0.35rem" }}
           >
             {darkMode ? <Sun size={16} /> : <Moon size={16} />}
             <span style={{ fontSize: "0.8rem" }}>{darkMode ? "LIGHT" : "DARK"}</span>
@@ -59,7 +75,7 @@ export const Header: React.FC<HeaderProps> = ({ darkMode, onToggleTheme, onOpenH
             onClick={onOpenHelp}
             className="btn-secondary"
             title="Help & Documentation"
-            style={{ padding: "0.5rem 0.85rem" }}
+            style={{ padding: "0.5rem 0.85rem", display: "flex", alignItems: "center", gap: "0.35rem" }}
           >
             <HelpCircle size={16} />
             <span style={{ fontSize: "0.8rem" }}>DOCS</span>

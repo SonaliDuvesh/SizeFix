@@ -1,7 +1,38 @@
 import type { FileAnalysisResult, ProcessRequestOptions, ProcessResult, SupportedFormatsResponse } from "../types";
 
-const rawBase = (import.meta.env.VITE_API_BASE as string | undefined)?.trim() || "";
-const API_BASE = rawBase.replace(/\/+$/, "");
+export const DEFAULT_RENDER_BACKEND = "https://sizefix-api.onrender.com";
+
+export function getApiBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    const custom = localStorage.getItem("sizefix_backend_url");
+    if (custom && custom.trim()) {
+      return custom.trim().replace(/\/+$/, "");
+    }
+  }
+
+  const envBase = (import.meta.env.VITE_API_BASE as string | undefined)?.trim();
+  if (envBase) {
+    return envBase.replace(/\/+$/, "");
+  }
+
+  // If in local dev on localhost/127.0.0.1, use relative paths so Vite proxy forwards to local backend
+  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+    return "";
+  }
+
+  // Fallback for GitHub Pages and production static deployments
+  return DEFAULT_RENDER_BACKEND;
+}
+
+export function setCustomBackendUrl(url: string | null) {
+  if (typeof window !== "undefined") {
+    if (url && url.trim()) {
+      localStorage.setItem("sizefix_backend_url", url.trim().replace(/\/+$/, ""));
+    } else {
+      localStorage.removeItem("sizefix_backend_url");
+    }
+  }
+}
 
 async function handleApiResponse<T>(res: Response, defaultError: string): Promise<T> {
   const contentType = res.headers.get("content-type") || "";
@@ -13,16 +44,16 @@ async function handleApiResponse<T>(res: Response, defaultError: string): Promis
     return data as T;
   }
 
-  // If response is HTML or text (e.g. 404/405 from Vercel edge rewrite or 502 Bad Gateway)
+  // If response is HTML or text (e.g. 404/405 from static edge rewrite or 502 Bad Gateway)
   const text = await res.text().catch(() => "");
   if (!res.ok) {
     if (res.status === 404 || res.status === 405) {
       throw new Error(
-        `Backend API unreachable (${res.status === 405 ? "HTTP 405 Method Not Allowed" : "HTTP 404 Not Found"}). Make sure 'VITE_API_BASE' is configured with your Render backend URL (e.g. https://your-backend.onrender.com) in Vercel Environment Variables, and then redeploy the frontend on Vercel.`
+        `Backend API endpoint unreachable (${res.status === 405 ? "HTTP 405" : "HTTP 404"}). Ensure your Render backend is running, or configure your backend URL in the header 'Server' settings.`
       );
     }
     if (res.status === 502 || res.status === 503) {
-      throw new Error("Backend service on Render is sleeping or starting up. Free Render instances sleep after inactivity; please wait ~30 seconds and try again.");
+      throw new Error("Backend service on Render is waking up or starting. Free Render instances take ~30-50 seconds to boot from sleep. Please wait a moment and try again.");
     }
     const cleanMsg = text.replace(/<[^>]*>?/gm, "").trim().slice(0, 120);
     throw new Error(cleanMsg || `${defaultError} (HTTP ${res.status})`);
@@ -33,20 +64,23 @@ async function handleApiResponse<T>(res: Response, defaultError: string): Promis
 
 export class ApiService {
   static async checkHealth(): Promise<{ status: string }> {
-    const res = await fetch(`${API_BASE}/health`);
+    const base = getApiBaseUrl();
+    const res = await fetch(`${base}/health`);
     return handleApiResponse<{ status: string }>(res, "Backend server is not responding");
   }
 
   static async getSupportedFormats(): Promise<SupportedFormatsResponse> {
-    const res = await fetch(`${API_BASE}/supported-formats`);
+    const base = getApiBaseUrl();
+    const res = await fetch(`${base}/supported-formats`);
     return handleApiResponse<SupportedFormatsResponse>(res, "Failed to fetch supported formats");
   }
 
   static async analyzeFile(file: File): Promise<FileAnalysisResult> {
+    const base = getApiBaseUrl();
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch(`${API_BASE}/analyze`, {
+    const res = await fetch(`${base}/analyze`, {
       method: "POST",
       body: formData,
     });
@@ -55,6 +89,7 @@ export class ApiService {
   }
 
   static async processFile(file: File, options: ProcessRequestOptions): Promise<ProcessResult> {
+    const base = getApiBaseUrl();
     const formData = new FormData();
     formData.append("file", file);
 
@@ -76,7 +111,7 @@ export class ApiService {
 
     formData.append("response_mode", "json");
 
-    const res = await fetch(`${API_BASE}/process`, {
+    const res = await fetch(`${base}/process`, {
       method: "POST",
       body: formData,
     });
@@ -85,6 +120,7 @@ export class ApiService {
   }
 
   static getDownloadUrl(fileId: string): string {
-    return `${API_BASE}/download/${fileId}`;
+    const base = getApiBaseUrl();
+    return `${base}/download/${fileId}`;
   }
 }

@@ -11,12 +11,14 @@ import { ProcessingState } from "./components/ProcessingState";
 import { ResultsComparison } from "./components/ResultsComparison";
 import { ErrorBanner } from "./components/ErrorBanner";
 import { HelpModal } from "./components/HelpModal";
+import { ServerConfigModal } from "./components/ServerConfigModal";
 import { ApiService } from "./services/api";
 import type { FileAnalysisResult, ProcessResult, TargetUnit, TargetMode } from "./types";
 
 export const App: React.FC = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [serverConfigOpen, setServerConfigOpen] = useState(false);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | undefined>(undefined);
@@ -141,6 +143,7 @@ export const App: React.FC = () => {
         darkMode={darkMode}
         onToggleTheme={() => setDarkMode(!darkMode)}
         onOpenHelp={() => setHelpOpen(true)}
+        onOpenServerSettings={() => setServerConfigOpen(true)}
       />
 
       {errorMessage && (
@@ -275,6 +278,7 @@ export const App: React.FC = () => {
       )}
 
       <HelpModal isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
+      <ServerConfigModal isOpen={serverConfigOpen} onClose={() => setServerConfigOpen(false)} />
     </div>
   );
 };
