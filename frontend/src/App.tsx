@@ -11,14 +11,12 @@ import { ProcessingState } from "./components/ProcessingState";
 import { ResultsComparison } from "./components/ResultsComparison";
 import { ErrorBanner } from "./components/ErrorBanner";
 import { HelpModal } from "./components/HelpModal";
-import { ServerConfigModal } from "./components/ServerConfigModal";
 import { ApiService } from "./services/api";
 import type { FileAnalysisResult, ProcessResult, TargetUnit, TargetMode } from "./types";
 
 export const App: React.FC = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [serverConfigOpen, setServerConfigOpen] = useState(false);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | undefined>(undefined);
@@ -143,7 +141,6 @@ export const App: React.FC = () => {
         darkMode={darkMode}
         onToggleTheme={() => setDarkMode(!darkMode)}
         onOpenHelp={() => setHelpOpen(true)}
-        onOpenServerSettings={() => setServerConfigOpen(true)}
       />
 
       {errorMessage && (
@@ -184,7 +181,7 @@ export const App: React.FC = () => {
                         <h4 style={{ fontSize: "0.85rem", textTransform: "uppercase" }}>Optimization Engine</h4>
                       </div>
                       <p style={{ fontSize: "0.8rem", color: "var(--secondary-text)" }}>
-                        Adaptive binary-search quality tuning and micro-scaling will execute on your file to reach your target size with highest fidelity.
+                        Adaptive binary-search quality tuning and micro-scaling execute 100% in your browser to reach your target size with highest fidelity.
                       </p>
                     </div>
                   )}
@@ -278,7 +275,6 @@ export const App: React.FC = () => {
       )}
 
       <HelpModal isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
-      <ServerConfigModal isOpen={serverConfigOpen} onClose={() => setServerConfigOpen(false)} />
     </div>
   );
 };

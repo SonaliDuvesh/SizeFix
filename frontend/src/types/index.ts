@@ -70,6 +70,8 @@ export interface ProcessResult {
   pages?: number;
   images_optimized?: number;
   output_file_id?: string;
+  download_url?: string;
+  blob_url?: string;
   error_code?: string;
   message?: string;
 }

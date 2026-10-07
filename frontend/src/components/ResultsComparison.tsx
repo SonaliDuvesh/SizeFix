@@ -29,9 +29,10 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
     }
   }, [result]);
 
-  const downloadUrl = result.output_file_id
-    ? ApiService.getDownloadUrl(result.output_file_id)
-    : "";
+  const downloadUrl =
+    result.blob_url ||
+    result.download_url ||
+    (result.output_file_id ? ApiService.getDownloadUrl(result.output_file_id) : "");
 
   const isImage = result.format !== "pdf";
   const isExpanded = (result.saved_bytes ?? 0) < 0 || result.output_size > result.original_size;

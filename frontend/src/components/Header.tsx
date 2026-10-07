@@ -1,18 +1,16 @@
 import React from "react";
-import { Moon, Sun, HelpCircle, ShieldCheck, Server } from "lucide-react";
+import { Moon, Sun, HelpCircle, ShieldCheck, Cpu } from "lucide-react";
 
 interface HeaderProps {
   darkMode: boolean;
   onToggleTheme: () => void;
   onOpenHelp: () => void;
-  onOpenServerSettings: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   darkMode,
   onToggleTheme,
   onOpenHelp,
-  onOpenServerSettings,
 }) => {
   return (
     <header className="box-card mb-6" style={{ padding: "1rem 1.5rem" }}>
@@ -39,28 +37,18 @@ export const Header: React.FC<HeaderProps> = ({
             <span style={{ fontSize: "0.85rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--secondary-text)" }}>
               Resize. Compress. Convert. Done.
             </span>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "2px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "2px", flexWrap: "wrap" }}>
               <span className="sharp-tag sharp-tag-success" style={{ fontSize: "0.7rem" }}>
-                <ShieldCheck size={12} /> 100% Local & Private
+                <ShieldCheck size={12} /> 100% In-Browser & Private
               </span>
               <span className="sharp-tag" style={{ fontSize: "0.7rem" }}>
-                v2.4 Core
+                <Cpu size={12} /> Zero Server Required
               </span>
             </div>
           </div>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
-          <button
-            onClick={onOpenServerSettings}
-            className="btn-secondary"
-            title="Backend Server Settings & Status"
-            style={{ padding: "0.5rem 0.85rem", display: "flex", alignItems: "center", gap: "0.35rem" }}
-          >
-            <Server size={16} />
-            <span style={{ fontSize: "0.8rem" }}>SERVER</span>
-          </button>
-
           <button
             onClick={onToggleTheme}
             className="btn-secondary"
