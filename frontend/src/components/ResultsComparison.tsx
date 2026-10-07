@@ -176,50 +176,89 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
           <div
             style={{
               position: "relative",
-              height: "300px",
+              height: "360px",
               border: "2px solid var(--border-color)",
               boxShadow: "3px 3px 0px var(--border-color)",
               overflow: "hidden",
-              background: "#222",
+              background: "#18060E",
+              userSelect: "none",
             }}
           >
+            {/* Background: Optimized Image */}
             <img
               src={downloadUrl}
               alt="Optimized Preview"
               style={{
                 position: "absolute",
+                top: 0,
+                left: 0,
                 width: "100%",
                 height: "100%",
                 objectFit: "contain",
+                pointerEvents: "none",
               }}
             />
 
-            <div
+            {/* Foreground: Original Image clipped by slider position */}
+            <img
+              src={originalPreviewUrl}
+              alt="Original Preview"
               style={{
                 position: "absolute",
                 top: 0,
                 left: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                clipPath: `inset(0 ${100 - sliderPosition}% 0 0)`,
+                WebkitClipPath: `inset(0 ${100 - sliderPosition}% 0 0)`,
+                pointerEvents: "none",
+              }}
+            />
+
+            {/* Vertical Divider Line */}
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
                 bottom: 0,
-                width: `${sliderPosition}%`,
-                overflow: "hidden",
-                borderRight: "3px solid var(--primary-pink)",
+                left: `${sliderPosition}%`,
+                width: "3px",
+                background: "var(--strong-raspberry)",
+                boxShadow: "0 0 6px rgba(0,0,0,0.6)",
+                transform: "translateX(-50%)",
+                pointerEvents: "none",
+                zIndex: 5,
+              }}
+            />
+
+            {/* Center Drag Handle Badge */}
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: `${sliderPosition}%`,
+                transform: "translate(-50%, -50%)",
+                background: "var(--strong-raspberry)",
+                color: "#FFFFFF",
+                border: "2px solid #FFFFFF",
+                boxShadow: "2px 2px 0px var(--border-color)",
+                padding: "4px 8px",
+                fontWeight: 900,
+                fontSize: "0.75rem",
+                letterSpacing: "0.1em",
+                pointerEvents: "none",
+                zIndex: 6,
+                display: "flex",
+                alignItems: "center",
+                gap: "3px",
               }}
             >
-              <img
-                src={originalPreviewUrl}
-                alt="Original Preview"
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "contain",
-                  minWidth: "100%",
-                }}
-              />
+              <span>◀</span>
+              <span>▶</span>
             </div>
 
+            {/* Interactive Slider Input */}
             <input
               type="range"
               min="0"
@@ -235,16 +274,18 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
                 opacity: 0,
                 cursor: "ew-resize",
                 zIndex: 10,
+                margin: 0,
               }}
             />
 
-            <div style={{ position: "absolute", top: 10, left: 10, pointerEvents: "none" }}>
-              <span className="sharp-tag" style={{ background: "rgba(0,0,0,0.75)", color: "#FFFFFF", borderColor: "#FFF" }}>
+            {/* Top Badges */}
+            <div style={{ position: "absolute", top: 10, left: 10, pointerEvents: "none", zIndex: 7 }}>
+              <span className="sharp-tag" style={{ background: "rgba(0,0,0,0.8)", color: "#FFFFFF", borderColor: "#FFF" }}>
                 Original ({result.original_size_human})
               </span>
             </div>
-            <div style={{ position: "absolute", top: 10, right: 10, pointerEvents: "none" }}>
-              <span className="sharp-tag sharp-tag-raspberry">
+            <div style={{ position: "absolute", top: 10, right: 10, pointerEvents: "none", zIndex: 7 }}>
+              <span className="sharp-tag sharp-tag-raspberry" style={{ boxShadow: "2px 2px 0px #000" }}>
                 Optimized ({result.output_size_human})
               </span>
             </div>

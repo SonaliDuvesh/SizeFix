@@ -57,7 +57,10 @@ export const App: React.FC = () => {
     setProcessResult(null);
     setSelectedFile(file);
 
-    if (file.type.startsWith("image/")) {
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    const isImg = file.type.startsWith("image/") || ["jpg", "jpeg", "png", "webp", "avif", "gif", "bmp", "tiff", "svg", "heic", "heif"].includes(ext);
+
+    if (isImg) {
       const url = URL.createObjectURL(file);
       setFilePreviewUrl(url);
     } else {
