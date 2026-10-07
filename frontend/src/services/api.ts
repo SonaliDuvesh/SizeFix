@@ -83,6 +83,10 @@ export class ApiService {
     const res = await fetch(`${base}/analyze`, {
       method: "POST",
       body: formData,
+    }).catch(() => {
+      throw new Error(
+        `Failed to connect to backend at ${base || "(local)"}. If using Render, please check your exact Render service URL in the 'SERVER' button in the top right (Render services often look like https://your-app-name-xxxx.onrender.com).`
+      );
     });
 
     return handleApiResponse<FileAnalysisResult>(res, "Failed to analyze file");
@@ -114,6 +118,10 @@ export class ApiService {
     const res = await fetch(`${base}/process`, {
       method: "POST",
       body: formData,
+    }).catch(() => {
+      throw new Error(
+        `Failed to connect to backend at ${base || "(local)"}. Please verify your Render service URL in the 'SERVER' button in the header.`
+      );
     });
 
     return handleApiResponse<ProcessResult>(res, "Processing failed");
