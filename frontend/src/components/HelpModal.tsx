@@ -70,21 +70,21 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
               <div className="box-card-subtle" style={{ padding: "0.9rem 1.1rem" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.4rem", marginBottom: "0.35rem" }}>
                   <span style={{ fontWeight: 800, fontSize: "0.95rem", color: "var(--dark-text)" }}>
-                    1. Maximum Size (Hard Upper Limit)
+                    1. Maximum Size (Target Cap)
                   </span>
                   <span className="sharp-tag sharp-tag-success" style={{ fontSize: "0.7rem" }}>
                     Most Popular
                   </span>
                 </div>
                 <p style={{ marginBottom: "0.4rem" }}>
-                  <strong>How it works:</strong> Aims to keep the output file size at or below your target value (e.g. 100 KB, 500 KB, 2 MB). If the file is already smaller than the target, it retains original clarity without unnecessary reduction.
+                  <strong>How it works:</strong> Helps ensure the file size stays within your chosen target (e.g. 100 KB, 500 KB, 2 MB). If your file is already smaller than the target, it preserves its original quality without extra reduction.
                 </p>
                 <div style={{ background: "var(--bg-card)", padding: "0.5rem 0.75rem", borderLeft: "3px solid var(--strong-raspberry)", fontSize: "0.82rem" }}>
                   <strong>Ideal Use Cases:</strong>
                   <ul style={{ paddingLeft: "1.2rem", marginTop: "0.25rem", display: "flex", flexDirection: "column", gap: "0.2rem" }}>
-                    <li><strong>Government & Exam Portals:</strong> Forms (UPSC, SSC, State PSC, Passport Seva, Visa applications) requiring documents under a strict ceiling (e.g. <em>"Photo must be under 50 KB"</em>, <em>"Certificate under 200 KB"</em>).</li>
-                    <li><strong>Email Attachments:</strong> Shrinking PDFs and photos to stay below strict email server caps (e.g. 20 MB or 25 MB).</li>
-                    <li><strong>Job Applications:</strong> Resume/CV upload fields with hard size limits (e.g. <em>"Max 2 MB PDF"</em>).</li>
+                    <li><strong>Government & Exam Portals:</strong> Helpful for portals (such as UPSC, SSC, State PSC, Passport Seva, and Visa forms) requesting files under a specified size (e.g. <em>"Photo under 50 KB"</em>, <em>"Certificate under 200 KB"</em>).</li>
+                    <li><strong>Email Attachments:</strong> Compressing PDFs and photos to easily fit within standard email attachment limits (e.g. 20 MB or 25 MB).</li>
+                    <li><strong>Job Applications:</strong> Resume and CV uploads that have upload size limits (e.g. <em>"Max 2 MB PDF"</em>).</li>
                   </ul>
                 </div>
               </div>

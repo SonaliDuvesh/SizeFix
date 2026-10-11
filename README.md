@@ -33,7 +33,7 @@ No telemetry. No third-party cloud uploads. Zero data leaves your machine.
 
 ## Key Highlights
 
-- **Sub-Percent Target Precision**: Proprietary **Two-Phase Binary Search + Micro-Scale Tuning** guarantees output within ±0.5% of exact user-specified targets (`B`, `KB`, `MB`, `GB`).
+- **Sub-Percent Target Precision**: Proprietary **Two-Phase Binary Search + Micro-Scale Tuning** delivers output within ±0.5% of exact user-specified targets (`B`, `KB`, `MB`, `GB`).
 - **Bidirectional Target Control**: Supports lossless compression, smart deflation, as well as standards-compliant size expansion (up to `999 KB+`) via non-destructive stream padding.
 - **Neo-Brutalist Aesthetic**: Strict `0px` border-radius geometry with a vibrant Raspberry palette (`#FFF5F8` → `#C92F5B`), dark mode support, and tactile 4px offset shadows.
 - **Universal Cross-Platform Responsiveness**: Engineered for flawless touch and mouse workflows across Windows, macOS, Linux, iOS, and Android.
