@@ -1,5 +1,105 @@
+import { PDFDocument } from "pdf-lib";
 import type { ProcessRequestOptions, ProcessResult } from "../types";
 import { formatBytes, parseTargetBytes } from "./sizeParser";
+
+async function convertImageToPdfInBrowser(
+  img: HTMLImageElement,
+  file: File,
+  options: ProcessRequestOptions,
+  targetWidth: number,
+  targetHeight: number,
+  targetBytes: number | null
+): Promise<ProcessResult> {
+  const originalSize = file.size;
+  const originalFilename = file.name;
+  const outFilename = `optimized_${originalFilename.replace(/\.[^/.]+$/, "")}.pdf`;
+  const targetMode = options.target_mode || "maximum";
+  const quality = (options.quality !== undefined ? options.quality : 85) / 100;
+
+  const canvasBlob = await renderCanvasToBlob(img, targetWidth, targetHeight, "image/jpeg", quality);
+  const jpegBytes = await canvasBlob.arrayBuffer();
+
+  const pdfDoc = await PDFDocument.create();
+  const embedded = await pdfDoc.embedJpg(jpegBytes);
+
+  const page = pdfDoc.addPage([embedded.width, embedded.height]);
+  page.drawImage(embedded, {
+    x: 0,
+    y: 0,
+    width: embedded.width,
+    height: embedded.height,
+  });
+
+  const pdfBytes = await pdfDoc.save({ useObjectStreams: false });
+  let finalUint8Array: Uint8Array = pdfBytes;
+  let targetReached = true;
+  let reason = "Converted image to PDF document";
+
+  if (targetBytes && targetBytes > 0) {
+    if (targetMode === "exact" && pdfBytes.byteLength < targetBytes) {
+      const padNeeded = targetBytes - pdfBytes.byteLength;
+      if (padNeeded > 0) {
+        const headerStr = "\n% SizeFix_PADDING ";
+        const headerBytes = new TextEncoder().encode(headerStr);
+        const padded = new Uint8Array(targetBytes);
+        padded.set(pdfBytes, 0);
+
+        if (padNeeded >= headerBytes.byteLength) {
+          padded.set(headerBytes, pdfBytes.byteLength);
+          padded.fill(0x30, pdfBytes.byteLength + headerBytes.byteLength, targetBytes);
+        } else {
+          padded.fill(0x20, pdfBytes.byteLength, targetBytes);
+        }
+        finalUint8Array = padded;
+        targetReached = true;
+        reason = `Converted image to PDF and matched exact target (${formatBytes(targetBytes)})`;
+      }
+    } else if (targetMode === "maximum") {
+      targetReached = finalUint8Array.byteLength <= targetBytes;
+      reason = targetReached
+        ? `Converted image to PDF under target (${formatBytes(targetBytes)})`
+        : `Closest achievable PDF size is ${formatBytes(finalUint8Array.byteLength)}`;
+    } else if (targetMode === "range") {
+      targetReached = Math.abs(finalUint8Array.byteLength - targetBytes) / targetBytes <= 0.1;
+    }
+  }
+
+  const exactBuffer = finalUint8Array.buffer.slice(
+    finalUint8Array.byteOffset,
+    finalUint8Array.byteOffset + finalUint8Array.byteLength
+  ) as ArrayBuffer;
+  const outputBlob = new Blob([exactBuffer], { type: "application/pdf" });
+  const outputSize = outputBlob.size;
+  const blobUrl = URL.createObjectURL(outputBlob);
+  const savedBytes = originalSize - outputSize;
+  const compressionRatio = originalSize > 0 ? (originalSize - outputSize) / originalSize : 0;
+
+  return {
+    success: true,
+    original_filename: originalFilename,
+    output_filename: outFilename,
+    original_size: originalSize,
+    original_size_human: formatBytes(originalSize),
+    output_size: outputSize,
+    output_size_human: formatBytes(outputSize),
+    target_size: targetBytes || undefined,
+    target_size_human: targetBytes ? formatBytes(targetBytes) : undefined,
+    target_reached: targetReached,
+    compression_ratio: compressionRatio,
+    saved_bytes: savedBytes,
+    saved_bytes_human: formatBytes(Math.abs(savedBytes)),
+    format: "pdf",
+    mode: targetMode,
+    reason,
+    pages: 1,
+    width: embedded.width,
+    height: embedded.height,
+    original_width: img.naturalWidth || img.width,
+    original_height: img.naturalHeight || img.height,
+    blob_url: blobUrl,
+    download_url: blobUrl,
+  };
+}
 
 export async function processImageInBrowser(
   file: File,
@@ -14,13 +114,6 @@ export async function processImageInBrowser(
   if (outFormat === "original") {
     outFormat = originalExt === "jpeg" ? "jpg" : originalExt;
   }
-  if (!["jpg", "jpeg", "png", "webp"].includes(outFormat)) {
-    outFormat = "webp";
-  }
-
-  const mimeType = outFormat === "png" ? "image/png" : outFormat === "webp" ? "image/webp" : "image/jpeg";
-  const outExt = outFormat === "jpeg" ? "jpg" : outFormat;
-  const outFilename = `optimized_${originalFilename.replace(/\.[^/.]+$/, "")}.${outExt}`;
 
   // Load Image into an HTMLImageElement
   const img = await loadImageFromFile(file);
@@ -41,6 +134,26 @@ export async function processImageInBrowser(
 
   const targetBytes = parseTargetBytes(options.target_size, options.target_value, options.target_unit);
   const targetMode = options.target_mode || "maximum";
+
+  // Special branch: Convert Image to PDF
+  if (outFormat === "pdf") {
+    return await convertImageToPdfInBrowser(
+      img,
+      file,
+      options,
+      targetWidth,
+      targetHeight,
+      targetBytes
+    );
+  }
+
+  if (!["jpg", "jpeg", "png", "webp"].includes(outFormat)) {
+    outFormat = "jpg";
+  }
+
+  const mimeType = outFormat === "png" ? "image/png" : outFormat === "webp" ? "image/webp" : "image/jpeg";
+  const outExt = outFormat === "jpeg" ? "jpg" : outFormat;
+  const outFilename = `optimized_${originalFilename.replace(/\.[^/.]+$/, "")}.${outExt}`;
 
   let finalBlob: Blob;
   let finalQuality = (options.quality !== undefined ? options.quality : 80) / 100;

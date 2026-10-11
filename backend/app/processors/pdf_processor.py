@@ -278,7 +278,43 @@ class PDFProcessor(BaseProcessor):
                     for page in doc:
                         text_content.append(page.get_text())
                 full_text = "\n\n--- Page Break ---\n\n".join(text_content)
-                output_path.write_text(full_text, encoding="utf-8")
+                raw_bytes = full_text.encode("utf-8")
+                cur_size = len(raw_bytes)
+                target_reached = True
+                reason = f"Extracted searchable text across {total_pages} page(s)."
+
+                if target_bytes and target_bytes > 0:
+                    norm_mode = (options.target_mode or "maximum").lower()
+                    if norm_mode == "exact":
+                        if cur_size < target_bytes:
+                            pad_needed = target_bytes - cur_size
+                            header = b"\n\n--- [SizeFix Precision Size Pad] ---\n"
+                            if pad_needed >= len(header):
+                                pad_fill = b" " * (pad_needed - len(header))
+                                raw_bytes = raw_bytes + header + pad_fill
+                            else:
+                                raw_bytes = raw_bytes + (b" " * pad_needed)
+                            target_reached = True
+                            reason = f"Extracted text and padded to exact target ({format_bytes(target_bytes)})."
+                        elif cur_size > target_bytes:
+                            target_reached = False
+                            reason = f"Extracted text ({format_bytes(cur_size)}) exceeds exact target ({format_bytes(target_bytes)})."
+                    elif norm_mode == "maximum":
+                        if cur_size > target_bytes:
+                            notice = b"\n\n[...Truncated to meet target maximum limit...]"
+                            if target_bytes > len(notice):
+                                raw_bytes = raw_bytes[:target_bytes - len(notice)] + notice
+                            else:
+                                raw_bytes = raw_bytes[:target_bytes]
+                            target_reached = True
+                            reason = f"Extracted text trimmed to meet maximum limit ({format_bytes(target_bytes)})."
+                        else:
+                            target_reached = True
+                            reason = f"Extracted text ({format_bytes(cur_size)}) is within maximum limit ({format_bytes(target_bytes)})."
+                    elif norm_mode == "range":
+                        target_reached = abs(cur_size - target_bytes) / target_bytes <= 0.1
+
+                output_path.write_bytes(raw_bytes)
                 output_size = output_path.stat().st_size
                 saved_bytes = original_size - output_size
                 return ProcessResult(
@@ -291,13 +327,13 @@ class PDFProcessor(BaseProcessor):
                     output_size_human=format_bytes(output_size),
                     target_size=target_bytes,
                     target_size_human=format_bytes(target_bytes) if target_bytes else None,
-                    target_reached=True,
+                    target_reached=target_reached,
                     compression_ratio=round(saved_bytes / original_size, 4) if original_size > 0 else 0.0,
                     saved_bytes=saved_bytes,
                     saved_bytes_human=format_bytes(abs(saved_bytes)),
                     format="txt",
                     mode=options.target_mode,
-                    reason=f"Extracted searchable text across {total_pages} page(s).",
+                    reason=reason,
                     pages=total_pages
                 )
 

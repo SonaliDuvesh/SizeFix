@@ -73,7 +73,7 @@ class ImageProcessor(BaseProcessor):
         elif target_fmt == "pdf":
             if img.mode != "RGB":
                 img = img.convert("RGB")
-            img.save(buf, format="PDF", resolution=100.0)
+            img.save(buf, format="PDF", resolution=100.0, quality=max(1, min(100, quality)))
             return buf.getvalue()
         elif target_fmt == "png":
             save_kwargs["format"] = "PNG"
