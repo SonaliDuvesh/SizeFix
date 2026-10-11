@@ -77,7 +77,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                   </span>
                 </div>
                 <p style={{ marginBottom: "0.4rem" }}>
-                  <strong>How it works:</strong> Guarantees that the output file size stays strictly <strong>at or below</strong> your target value (e.g. 100 KB, 500 KB, 2 MB). If the file is already smaller than the target, it retains original clarity without unnecessary reduction.
+                  <strong>How it works:</strong> Aims to keep the output file size at or below your target value (e.g. 100 KB, 500 KB, 2 MB). If the file is already smaller than the target, it retains original clarity without unnecessary reduction.
                 </p>
                 <div style={{ background: "var(--bg-card)", padding: "0.5rem 0.75rem", borderLeft: "3px solid var(--strong-raspberry)", fontSize: "0.82rem" }}>
                   <strong>Ideal Use Cases:</strong>

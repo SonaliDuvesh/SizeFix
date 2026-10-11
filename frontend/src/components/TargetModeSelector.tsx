@@ -8,7 +8,7 @@ interface TargetModeSelectorProps {
 
 export const TargetModeSelector: React.FC<TargetModeSelectorProps> = ({ mode, onModeChange }) => {
   const modes: { id: TargetMode; label: string; desc: string }[] = [
-    { id: "maximum", label: "Maximum Size", desc: "Guarantees file stays strictly below target" },
+    { id: "maximum", label: "Maximum Size", desc: "Helps keep file size at or below your target" },
     { id: "exact", label: "Closest Size", desc: "Attempts to hit exact size without quality corruption" },
     { id: "range", label: "Size Range", desc: "Optimizes file within target tolerance band" },
   ];
