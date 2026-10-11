@@ -258,10 +258,11 @@ async function compressCanvasToJpeg(
   srcW: number,
   srcH: number,
   quality: number,
-  maxDim?: number
+  maxDim?: number,
+  scaleMultiplier: number = 1.0
 ): Promise<{ bytes: Uint8Array; width: number; height: number } | null> {
-  let targetW = srcW;
-  let targetH = srcH;
+  let targetW = Math.max(1, Math.round(srcW * scaleMultiplier));
+  let targetH = Math.max(1, Math.round(srcH * scaleMultiplier));
 
   if (maxDim && (targetW > maxDim || targetH > maxDim)) {
     const scale = Math.min(maxDim / targetW, maxDim / targetH);
@@ -297,7 +298,8 @@ async function compressCanvasToJpeg(
 async function compressEmbeddedPdfImages(
   pdfDoc: PDFDocument,
   quality: number,
-  maxDim?: number
+  maxDim?: number,
+  scaleMultiplier: number = 1.0
 ): Promise<number> {
   let count = 0;
 
@@ -322,7 +324,8 @@ async function compressEmbeddedPdfImages(
             decoded.width,
             decoded.height,
             quality,
-            maxDim
+            maxDim,
+            scaleMultiplier
           );
 
           if (compressed && compressed.bytes.byteLength < rawBytes.byteLength) {
@@ -560,20 +563,20 @@ export async function processPdfInBrowser(
   } else {
     // Normal compression without target size or target size >= original
     const level = options.pdf_compression_level || "balanced";
-    const qualityMap: Record<string, { quality: number; maxDim?: number }> = {
-      low: { quality: 0.85, maxDim: 2000 },
-      balanced: { quality: 0.65, maxDim: 1400 },
-      maximum: { quality: 0.45, maxDim: 900 },
+    const qualityMap: Record<string, { quality: number; maxDim?: number; scaleMultiplier: number }> = {
+      low: { quality: 0.85, maxDim: 2000, scaleMultiplier: 1.0 },
+      balanced: { quality: 0.65, maxDim: 1200, scaleMultiplier: 0.80 },
+      maximum: { quality: 0.35, maxDim: 800, scaleMultiplier: 0.60 },
     };
 
-    let { quality, maxDim } = qualityMap[level] || qualityMap.balanced;
-    if (options.quality !== undefined) {
+    let { quality, maxDim, scaleMultiplier } = qualityMap[level] || qualityMap.balanced;
+    if (options.pdf_compression_level === undefined && options.quality !== undefined) {
       quality = Math.max(0.1, Math.min(1.0, options.quality / 100));
     }
 
     sanitizeDoc(pdfDoc);
     if (options.pdf_optimize_images !== false) {
-      imagesOptimized = await compressEmbeddedPdfImages(pdfDoc, quality, maxDim);
+      imagesOptimized = await compressEmbeddedPdfImages(pdfDoc, quality, maxDim, scaleMultiplier);
     }
 
     const saved = await savePdfOptimized(pdfDoc);

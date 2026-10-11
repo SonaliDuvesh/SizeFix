@@ -18,7 +18,8 @@ class PDFProcessor(BaseProcessor):
         self,
         doc: fitz.Document,
         image_quality: int = 75,
-        max_dim: Optional[int] = 1600
+        max_dim: Optional[int] = 1600,
+        scale_multiplier: float = 1.0
     ) -> int:
         images_processed = 0
         
@@ -37,10 +38,13 @@ class PDFProcessor(BaseProcessor):
                         
                     with Image.open(io.BytesIO(image_bytes)) as pil_img:
                         w, h = pil_img.size
-                        if max_dim and (w > max_dim or h > max_dim):
-                            scale = min(max_dim / w, max_dim / h)
-                            new_w = max(1, int(w * scale))
-                            new_h = max(1, int(h * scale))
+                        new_w = max(1, int(w * scale_multiplier))
+                        new_h = max(1, int(h * scale_multiplier))
+                        if max_dim and (new_w > max_dim or new_h > max_dim):
+                            scale = min(max_dim / new_w, max_dim / new_h)
+                            new_w = max(1, int(new_w * scale))
+                            new_h = max(1, int(new_h * scale))
+                        if new_w != w or new_h != h:
                             pil_img = pil_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
                             
                         if pil_img.mode in ("RGBA", "LA", "P"):
@@ -349,14 +353,20 @@ class PDFProcessor(BaseProcessor):
                     )
                 else:
                     level = options.pdf_compression_level or "balanced"
-                    q_map = {"low": (85, 2000), "balanced": (70, 1500), "maximum": (45, 900)}
-                    q, max_dim = q_map.get(level, (70, 1500))
+                    q_map = {
+                        "low": (85, 2000, 1.0),
+                        "balanced": (65, 1200, 0.80),
+                        "maximum": (35, 800, 0.60)
+                    }
+                    q, max_dim, scale_mult = q_map.get(level, (65, 1200, 0.80))
                     
                     with fitz.open(input_path) as doc:
                         total_pages = len(doc)
                         self._optimize_document_structure(doc, options.remove_metadata)
                         if options.pdf_optimize_images:
-                            images_optimized = self._compress_pdf_images(doc, image_quality=q, max_dim=max_dim)
+                            images_optimized = self._compress_pdf_images(
+                                doc, image_quality=q, max_dim=max_dim, scale_multiplier=scale_mult
+                            )
                         output_size = self._save_pdf_optimized(doc, output_path)
                         if output_size > original_size:
                             output_path.write_bytes(input_path.read_bytes())

@@ -114,15 +114,16 @@ export const App: React.FC = () => {
     setIsProcessing(true);
 
     try {
+      const isPdf = selectedFile.type === "application/pdf" || selectedFile.name.toLowerCase().endsWith(".pdf") || analysis.category === "document";
       const options = {
         target_size: targetValue ? `${targetValue} ${targetUnit}` : undefined,
         target_mode: targetMode,
         output_format: outputFormat !== "original" ? outputFormat : undefined,
-        quality: quality,
+        quality: isPdf ? undefined : quality,
         width: width ? parseInt(width, 10) : undefined,
         height: height ? parseInt(height, 10) : undefined,
         maintain_aspect_ratio: maintainAspect,
-        remove_metadata: removeMetadata,
+        remove_metadata: isPdf ? pdfRemoveMeta : removeMetadata,
         progressive: progressive,
         pdf_compression_level: pdfCompressionLevel,
         pdf_optimize_images: pdfOptimizeImages,
