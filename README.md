@@ -106,13 +106,13 @@ PDF documents undergo multi-layer inspection:
 - **Selectable Text Preservation**: Retains all native vector paths, fonts, forms, and OCR layers intact.
 
 ---
-## Target Size Modes Explained
+## Target Size Modes & Practical Use Cases
 
-| Mode | Behavior | Ideal Use Case |
+| Mode | Behavior | Ideal Use Cases |
 | :--- | :--- | :--- |
-| **`Maximum Size`** | Guarantees the resulting file stays strictly **$\le$ target bytes**. If natural compression surpasses the target, highest quality ceiling is selected. | Strict upload portals (visa forms, government job applications, email attachments). |
-| **`Closest Size`** | Drives the optimization engine to match the exact target byte count using quality tuning, micro-scaling, or clean stream padding. | Format conversions where you want to maintain identical file weight across formats. |
-| **`Size Range`** | Targets a balanced band ($\pm 5\%$ of target bytes) while prioritizing visual fidelity and execution speed. | Batch asset pipelines and web media optimization. |
+| **`Maximum Size`** | Guarantees the resulting file stays strictly **$\le$ target bytes**. If natural compression surpasses the target, the highest visual quality under the ceiling is preserved without unnecessary downsampling. | **Strict Upload Ceilings**: Government application portals (UPSC, SSC, State PSCs, Passport Seva, Visa application forms) requiring files under strict caps (e.g. *"Photo must be under 50 KB"*, *"Certificate under 200 KB"*), email attachment caps (20–25 MB), and university portals. |
+| **`Closest Size`** | Drives the optimization engine to match the exact target byte count using quality tuning, micro-scaling, or standards-compliant non-destructive stream padding for size enlargement. | **Minimum Size Requirements & Precision Matching**: Portals enforcing minimum size thresholds (e.g. *"File must be at least 50 KB"* or *"Between 100 KB and 100 KB"*). Safely expands a small 15 KB scan to 100 KB without damaging visual clarity or corrupting page structures. |
+| **`Size Range`** | Targets a balanced tolerance bracket ($\pm 5\%$ to $10\%$ of target bytes) while prioritizing visual fidelity and processing speed. | **Web Asset Budgets & Flexible Uploads**: Preparing hero images, blog graphics, or catalog photos targeted for a reasonable web budget (e.g. ~150 KB) without harsh compression artifacts; messaging and team drive sharing. |
 
 ---
 ## Comprehensive Format Support Matrix
@@ -184,6 +184,31 @@ npm install
 npm run dev -- --host 0.0.0.0 --port 5173
 ```
 *Access web application at: `http://localhost:5173`*
+
+---
+## Deployment Guide
+
+SizeFix is engineered for seamless dual-tier deployment on **Vercel** (Frontend) and **Render** (Backend):
+
+### 1. Deploy Frontend to Vercel
+The frontend operates either standalone (with its 100% in-browser pure TypeScript engine) or connected to the backend API:
+1. Import your GitHub repository into [Vercel](https://vercel.com).
+2. Configure project settings:
+   - **Framework Preset**: `Vite`
+   - **Root Directory**: `frontend`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+3. Click **Deploy**. Your in-browser optimization suite is immediately live with zero server requirements.
+
+### 2. Deploy Backend to Render
+The high-performance Python engine can be deployed as a web service on [Render](https://render.com):
+1. Create a new **Web Service** from your repository.
+2. Render automatically detects [`render.yaml`](./render.yaml), or configure manually:
+   - **Root Directory**: `backend`
+   - **Runtime**: `Python 3` or `Docker`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+3. Optional: Set `FRONTEND_URL` environment variable to your Vercel deployment URL for strict CORS isolation.
 
 ---
 ## REST API Documentation

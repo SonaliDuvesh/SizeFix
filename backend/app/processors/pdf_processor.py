@@ -138,9 +138,8 @@ class PDFProcessor(BaseProcessor):
                     images_count = count
 
                 if norm_mode == "maximum" and cur_size <= target_bytes:
-                    if target_bytes <= (input_path.stat().st_size if input_path.exists() else cur_size):
-                        output_path.write_bytes(doc_bytes)
-                        return cur_size, count, True, "PDF optimized within target maximum size."
+                    output_path.write_bytes(doc_bytes)
+                    return cur_size, count, True, f"PDF optimized within target maximum size ({format_bytes(cur_size)})."
                 elif norm_mode == "range" and min_bytes <= cur_size <= max_bytes:
                     output_path.write_bytes(doc_bytes)
                     return cur_size, count, True, f"PDF optimized to range [{format_bytes(min_bytes)} - {format_bytes(max_bytes)}]."
@@ -182,7 +181,7 @@ class PDFProcessor(BaseProcessor):
                             output_path.write_bytes(resample_bytes)
                             return cur_size, images_count, True, f"PDF resampled to exact target ({format_bytes(cur_size)})."
 
-        if best_data and best_size < target_bytes:
+        if norm_mode == "exact" and best_data and best_size < target_bytes:
             pad_needed = target_bytes - best_size
             if pad_needed > 0:
                 header = b"\n% SizeFix_PADDING "
@@ -199,7 +198,9 @@ class PDFProcessor(BaseProcessor):
         if best_data:
             output_path.write_bytes(best_data)
 
-        if norm_mode == "maximum" and best_size > target_bytes:
+        if norm_mode == "maximum":
+            if best_size <= target_bytes:
+                return best_size, images_count, True, f"PDF optimized within target maximum size ({format_bytes(best_size)})."
             return best_size, images_count, False, f"Closest achievable PDF size is {format_bytes(best_size)} ({best_size - target_bytes} bytes above target)."
         
         reached = (abs(best_size - target_bytes) / target_bytes <= 0.05) if norm_mode == "exact" else (best_size <= target_bytes)
@@ -357,6 +358,9 @@ class PDFProcessor(BaseProcessor):
                         if options.pdf_optimize_images:
                             images_optimized = self._compress_pdf_images(doc, image_quality=q, max_dim=max_dim)
                         output_size = self._save_pdf_optimized(doc, output_path)
+                        if output_size > original_size:
+                            output_path.write_bytes(input_path.read_bytes())
+                            output_size = original_size
                         
                     target_reached = True
                     reason = f"PDF structure and {images_optimized} embedded image(s) compressed using '{level}' profile."

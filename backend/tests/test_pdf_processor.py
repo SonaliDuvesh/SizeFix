@@ -41,3 +41,5 @@ def test_pdf_target_size_mode(sample_pdf_path: Path, tmp_path: Path):
     assert result.success is True
     assert result.format == "pdf"
     assert out_path.exists()
+    assert out_path.stat().st_size <= 25 * 1024
+    assert result.target_reached is True

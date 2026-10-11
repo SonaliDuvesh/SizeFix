@@ -1,4 +1,4 @@
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, PDFName, PDFNumber, PDFRawStream } from "pdf-lib";
 import pako from "pako";
 import type { ProcessRequestOptions, ProcessResult } from "../types";
 import { formatBytes, parseTargetBytes } from "./sizeParser";
@@ -72,6 +72,293 @@ function extractTextFromPdfBytes(buffer: Uint8Array, pageCount: number): string 
   return `--- Extracted Document ---\nPages: ${pageCount}\n(No plain text streams detected; file may contain scanned or rasterized imagery).`;
 }
 
+function unfilterPngPredictor(
+  data: Uint8Array,
+  width: number,
+  height: number,
+  bytesPerPixel: number
+): Uint8Array {
+  const stride = 1 + width * bytesPerPixel;
+  const out = new Uint8Array(width * height * bytesPerPixel);
+  let prevRow = new Uint8Array(width * bytesPerPixel);
+
+  for (let y = 0; y < height; y++) {
+    const rowStart = y * stride;
+    if (rowStart + stride > data.length) break;
+    const filterType = data[rowStart];
+    const currentRow = new Uint8Array(width * bytesPerPixel);
+
+    for (let i = 0; i < width * bytesPerPixel; i++) {
+      const raw = data[rowStart + 1 + i];
+      const left = i >= bytesPerPixel ? currentRow[i - bytesPerPixel] : 0;
+      const up = prevRow[i];
+      const upLeft = i >= bytesPerPixel ? prevRow[i - bytesPerPixel] : 0;
+
+      let val = raw;
+      if (filterType === 1) {
+        val = (raw + left) & 0xff;
+      } else if (filterType === 2) {
+        val = (raw + up) & 0xff;
+      } else if (filterType === 3) {
+        val = (raw + Math.floor((left + up) / 2)) & 0xff;
+      } else if (filterType === 4) {
+        const p = left + up - upLeft;
+        const pa = Math.abs(p - left);
+        const pb = Math.abs(p - up);
+        const pc = Math.abs(p - upLeft);
+        let pr = left;
+        if (pb < pa && pb <= pc) pr = up;
+        else if (pc < pa && pc < pb) pr = upLeft;
+        val = (raw + pr) & 0xff;
+      }
+      currentRow[i] = val;
+      out[y * width * bytesPerPixel + i] = val;
+    }
+    prevRow = currentRow;
+  }
+  return out;
+}
+
+async function decodeImageToCanvas(
+  rawBytes: Uint8Array,
+  filterName: string,
+  width: number,
+  height: number,
+  colorSpace: string
+): Promise<{ canvas: HTMLCanvasElement; width: number; height: number } | null> {
+  if (filterName === "/DCTDecode") {
+    const blob = new Blob([rawBytes as BlobPart], { type: "image/jpeg" });
+    if (typeof createImageBitmap !== "undefined") {
+      try {
+        const bitmap = await createImageBitmap(blob);
+        const canvas = document.createElement("canvas");
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(bitmap, 0, 0);
+          const w = bitmap.width;
+          const h = bitmap.height;
+          bitmap.close();
+          return { canvas, width: w, height: h };
+        }
+      } catch {
+        // Fall back to Image
+      }
+    }
+
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          resolve({ canvas, width: canvas.width, height: canvas.height });
+        } else {
+          resolve(null);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(null);
+      };
+      img.src = url;
+    });
+  }
+
+  let pixelData = rawBytes;
+  if (filterName === "/FlateDecode") {
+    try {
+      pixelData = pako.inflate(rawBytes);
+    } catch {
+      return null;
+    }
+  }
+
+  if (pixelData.length > 4) {
+    if (
+      (pixelData[0] === 0xff && pixelData[1] === 0xd8) ||
+      (pixelData[0] === 0x89 && pixelData[1] === 0x50 && pixelData[2] === 0x4e && pixelData[3] === 0x47)
+    ) {
+      const mime = pixelData[0] === 0xff ? "image/jpeg" : "image/png";
+      const blob = new Blob([pixelData as BlobPart], { type: mime });
+      if (typeof createImageBitmap !== "undefined") {
+        try {
+          const bitmap = await createImageBitmap(blob);
+          const canvas = document.createElement("canvas");
+          canvas.width = bitmap.width;
+          canvas.height = bitmap.height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(bitmap, 0, 0);
+            const w = bitmap.width;
+            const h = bitmap.height;
+            bitmap.close();
+            return { canvas, width: w, height: h };
+          }
+        } catch {
+          // Continue to raw parsing
+        }
+      }
+    }
+  }
+
+  if (width > 0 && height > 0) {
+    const isGray = colorSpace === "/DeviceGray";
+    const bytesPerPixel = isGray ? 1 : 3;
+
+    let uncompressed = pixelData;
+    if (pixelData.length === (1 + width * bytesPerPixel) * height) {
+      uncompressed = unfilterPngPredictor(pixelData, width, height, bytesPerPixel);
+    }
+
+    if (uncompressed.length >= width * height * bytesPerPixel) {
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+
+      const imgData = ctx.createImageData(width, height);
+      let srcIdx = 0;
+      let dstIdx = 0;
+
+      if (isGray) {
+        for (let i = 0; i < width * height; i++) {
+          const v = uncompressed[srcIdx++];
+          imgData.data[dstIdx++] = v;
+          imgData.data[dstIdx++] = v;
+          imgData.data[dstIdx++] = v;
+          imgData.data[dstIdx++] = 255;
+        }
+      } else {
+        for (let i = 0; i < width * height; i++) {
+          imgData.data[dstIdx++] = uncompressed[srcIdx++];
+          imgData.data[dstIdx++] = uncompressed[srcIdx++];
+          imgData.data[dstIdx++] = uncompressed[srcIdx++];
+          imgData.data[dstIdx++] = 255;
+        }
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+      return { canvas, width, height };
+    }
+  }
+
+  return null;
+}
+
+async function compressCanvasToJpeg(
+  sourceCanvas: HTMLCanvasElement,
+  srcW: number,
+  srcH: number,
+  quality: number,
+  maxDim?: number
+): Promise<{ bytes: Uint8Array; width: number; height: number } | null> {
+  let targetW = srcW;
+  let targetH = srcH;
+
+  if (maxDim && (targetW > maxDim || targetH > maxDim)) {
+    const scale = Math.min(maxDim / targetW, maxDim / targetH);
+    targetW = Math.max(1, Math.round(targetW * scale));
+    targetH = Math.max(1, Math.round(targetH * scale));
+  }
+
+  let renderCanvas = sourceCanvas;
+  if (targetW !== srcW || targetH !== srcH) {
+    renderCanvas = document.createElement("canvas");
+    renderCanvas.width = targetW;
+    renderCanvas.height = targetH;
+    const ctx = renderCanvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(sourceCanvas, 0, 0, targetW, targetH);
+  }
+
+  const blob = await new Promise<Blob | null>((resolve) => {
+    renderCanvas.toBlob(resolve, "image/jpeg", quality);
+  });
+  if (!blob) return null;
+
+  const ab = await blob.arrayBuffer();
+  return {
+    bytes: new Uint8Array(ab),
+    width: targetW,
+    height: targetH,
+  };
+}
+
+async function compressEmbeddedPdfImages(
+  pdfDoc: PDFDocument,
+  quality: number,
+  maxDim?: number
+): Promise<number> {
+  let count = 0;
+
+  for (const [ref, obj] of pdfDoc.context.enumerateIndirectObjects()) {
+    if (obj instanceof PDFRawStream && obj.dict) {
+      const subtype = obj.dict.get(PDFName.of("Subtype"))?.toString();
+      if (subtype === "/Image") {
+        try {
+          const filter = obj.dict.get(PDFName.of("Filter"))?.toString() || "";
+          const colorSpace = obj.dict.get(PDFName.of("ColorSpace"))?.toString() || "/DeviceRGB";
+          const origW = Number(obj.dict.get(PDFName.of("Width"))?.toString() || 0);
+          const origH = Number(obj.dict.get(PDFName.of("Height"))?.toString() || 0);
+          const rawBytes = obj.asUint8Array();
+
+          if (!rawBytes || rawBytes.length === 0) continue;
+
+          const decoded = await decodeImageToCanvas(rawBytes, filter, origW, origH, colorSpace);
+          if (!decoded) continue;
+
+          const compressed = await compressCanvasToJpeg(
+            decoded.canvas,
+            decoded.width,
+            decoded.height,
+            quality,
+            maxDim
+          );
+
+          if (compressed && compressed.bytes.byteLength < rawBytes.byteLength) {
+            const newDict = obj.dict.clone();
+            newDict.set(PDFName.of("Width"), PDFNumber.of(compressed.width));
+            newDict.set(PDFName.of("Height"), PDFNumber.of(compressed.height));
+            newDict.set(PDFName.of("ColorSpace"), PDFName.of("DeviceRGB"));
+            newDict.set(PDFName.of("BitsPerComponent"), PDFNumber.of(8));
+            newDict.set(PDFName.of("Filter"), PDFName.of("DCTDecode"));
+            newDict.set(PDFName.of("Length"), PDFNumber.of(compressed.bytes.byteLength));
+            newDict.delete(PDFName.of("DecodeParms"));
+            newDict.delete(PDFName.of("Mask"));
+
+            const newStream = PDFRawStream.of(newDict, compressed.bytes);
+            pdfDoc.context.assign(ref, newStream);
+            count++;
+          }
+        } catch {
+          // If a particular image cannot be re-encoded, preserve it intact
+          continue;
+        }
+      }
+    }
+  }
+
+  return count;
+}
+
+async function savePdfOptimized(pdfDoc: PDFDocument): Promise<Uint8Array> {
+  try {
+    return await pdfDoc.save({ useObjectStreams: true, addDefaultPage: false });
+  } catch {
+    return await pdfDoc.save({ useObjectStreams: false, addDefaultPage: false });
+  }
+}
+
 export async function processPdfInBrowser(
   file: File,
   options: ProcessRequestOptions
@@ -141,7 +428,7 @@ export async function processPdfInBrowser(
       }
     }
 
-    const textBlob = new Blob([finalBytes], { type: "text/plain;charset=utf-8" });
+    const textBlob = new Blob([finalBytes as BlobPart], { type: "text/plain;charset=utf-8" });
     const outputSize = textBlob.size;
     const blobUrl = URL.createObjectURL(textBlob);
     const savedBytes = originalSize - outputSize;
@@ -172,59 +459,159 @@ export async function processPdfInBrowser(
   }
 
   const outFilename = `optimized_${originalFilename.replace(/\.[^/.]+$/, "")}.pdf`;
-
-  if (options.remove_metadata !== false) {
-    try {
-      pdfDoc.setTitle("");
-      pdfDoc.setAuthor("");
-      pdfDoc.setSubject("");
-      pdfDoc.setKeywords([]);
-      pdfDoc.setProducer("SizeFix Engine");
-      pdfDoc.setCreator("SizeFix Engine");
-    } catch {
-      // Ignore if document catalog metadata cannot be cleared
-    }
-  }
-
-  // Save PDF using standard xref tables (useObjectStreams: false ensures universal compatibility without corruption)
-  const compressedBytes = await pdfDoc.save({
-    useObjectStreams: false,
-    addDefaultPage: false,
-  });
-
   const targetBytes = parseTargetBytes(options.target_size, options.target_value, options.target_unit);
   const targetMode = options.target_mode || "maximum";
 
-  let finalUint8Array: Uint8Array = compressedBytes;
+  let finalUint8Array: Uint8Array = new Uint8Array(arrayBuffer);
+  let imagesOptimized = 0;
   let targetReached = true;
-  let reason = "PDF stream deflated and metadata sanitized";
+  let reason = "PDF structure compressed and optimized";
 
+  // Sanitize document catalog metadata if requested
+  const sanitizeDoc = (doc: PDFDocument) => {
+    if (options.remove_metadata !== false) {
+      try {
+        doc.setTitle("");
+        doc.setAuthor("");
+        doc.setSubject("");
+        doc.setKeywords([]);
+        doc.setProducer("SizeFix Engine");
+        doc.setCreator("SizeFix Engine");
+      } catch {
+        // Ignore metadata clearance error
+      }
+    }
+  };
+
+  if (targetBytes && targetBytes > 0 && targetBytes < originalSize) {
+    // Adaptive multi-stage search to hit target size
+    const qualityStages = [
+      { quality: 0.85, maxDim: 2000 },
+      { quality: 0.70, maxDim: 1500 },
+      { quality: 0.55, maxDim: 1100 },
+      { quality: 0.40, maxDim: 800 },
+      { quality: 0.25, maxDim: 500 },
+    ];
+
+    let bestBytes: Uint8Array | null = null;
+    let bestDiff = Infinity;
+    let bestImgCount = 0;
+
+    for (const stage of qualityStages) {
+      try {
+        const iterDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+        sanitizeDoc(iterDoc);
+
+        let imgCount = 0;
+        if (options.pdf_optimize_images !== false) {
+          imgCount = await compressEmbeddedPdfImages(iterDoc, stage.quality, stage.maxDim);
+        }
+
+        const candidateBytes = await savePdfOptimized(iterDoc);
+        const curSize = candidateBytes.byteLength;
+        const diff = Math.abs(curSize - targetBytes);
+
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          bestBytes = candidateBytes;
+          bestImgCount = imgCount;
+        }
+
+        if (targetMode === "maximum" && curSize <= targetBytes) {
+          bestBytes = candidateBytes;
+          bestImgCount = imgCount;
+          break;
+        } else if (targetMode === "exact" && diff / targetBytes <= 0.03) {
+          bestBytes = candidateBytes;
+          bestImgCount = imgCount;
+          break;
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    if (bestBytes && bestBytes.byteLength < originalSize) {
+      finalUint8Array = bestBytes;
+      imagesOptimized = bestImgCount;
+    } else {
+      // Fall back to standard compression if search did not yield smaller bytes
+      sanitizeDoc(pdfDoc);
+      if (options.pdf_optimize_images !== false) {
+        imagesOptimized = await compressEmbeddedPdfImages(pdfDoc, 0.65, 1400);
+      }
+      const saved = await savePdfOptimized(pdfDoc);
+      if (saved.byteLength < originalSize) {
+        finalUint8Array = saved;
+      }
+    }
+
+    if (targetMode === "maximum") {
+      targetReached = finalUint8Array.byteLength <= targetBytes;
+      reason = targetReached
+        ? `PDF compressed within maximum target limit (${formatBytes(finalUint8Array.byteLength)})`
+        : `Closest achievable PDF size is ${formatBytes(finalUint8Array.byteLength)} (${formatBytes(finalUint8Array.byteLength - targetBytes)} above target)`;
+    } else if (targetMode === "range") {
+      targetReached = Math.abs(finalUint8Array.byteLength - targetBytes) / targetBytes <= 0.1;
+      reason = targetReached
+        ? `PDF compressed to target range (${formatBytes(finalUint8Array.byteLength)})`
+        : `PDF compressed to optimal structure (${formatBytes(finalUint8Array.byteLength)})`;
+    }
+  } else {
+    // Normal compression without target size or target size >= original
+    const level = options.pdf_compression_level || "balanced";
+    const qualityMap: Record<string, { quality: number; maxDim?: number }> = {
+      low: { quality: 0.85, maxDim: 2000 },
+      balanced: { quality: 0.65, maxDim: 1400 },
+      maximum: { quality: 0.45, maxDim: 900 },
+    };
+
+    let { quality, maxDim } = qualityMap[level] || qualityMap.balanced;
+    if (options.quality !== undefined) {
+      quality = Math.max(0.1, Math.min(1.0, options.quality / 100));
+    }
+
+    sanitizeDoc(pdfDoc);
+    if (options.pdf_optimize_images !== false) {
+      imagesOptimized = await compressEmbeddedPdfImages(pdfDoc, quality, maxDim);
+    }
+
+    const saved = await savePdfOptimized(pdfDoc);
+    if (saved.byteLength < originalSize) {
+      finalUint8Array = saved;
+      reason = `PDF structure and ${imagesOptimized} embedded image(s) compressed using '${level}' profile`;
+    } else if (imagesOptimized > 0) {
+      finalUint8Array = saved;
+      reason = `PDF optimized (${imagesOptimized} embedded image(s) processed)`;
+    } else {
+      // If PDF was already tight with no images, keep original bytes so it never grows
+      finalUint8Array = new Uint8Array(arrayBuffer);
+      reason = "PDF already fully compacted to optimal structure";
+    }
+  }
+
+  // Exact target size expansion (padding) when requested
   if (targetBytes && targetBytes > 0) {
-    if (targetMode === "exact" && compressedBytes.byteLength < targetBytes) {
-      const padNeeded = targetBytes - compressedBytes.byteLength;
+    if (targetMode === "exact" && finalUint8Array.byteLength < targetBytes) {
+      const padNeeded = targetBytes - finalUint8Array.byteLength;
       if (padNeeded > 0) {
-        // Pad using strictly valid PDF comment ASCII bytes so PDF readers parse it without corruption
         const headerStr = "\n% SizeFix_PADDING ";
         const headerBytes = new TextEncoder().encode(headerStr);
         const padded = new Uint8Array(targetBytes);
-        padded.set(compressedBytes, 0);
+        padded.set(finalUint8Array, 0);
 
         if (padNeeded >= headerBytes.byteLength) {
-          padded.set(headerBytes, compressedBytes.byteLength);
-          padded.fill(0x30, compressedBytes.byteLength + headerBytes.byteLength, targetBytes);
+          padded.set(headerBytes, finalUint8Array.byteLength);
+          padded.fill(0x30, finalUint8Array.byteLength + headerBytes.byteLength, targetBytes);
         } else {
-          padded.fill(0x20, compressedBytes.byteLength, targetBytes);
+          padded.fill(0x20, finalUint8Array.byteLength, targetBytes);
         }
         finalUint8Array = padded;
         targetReached = true;
-        reason = "Padded to exact target byte size";
+        reason = `Padded to exact target byte size (${formatBytes(targetBytes)})`;
       }
-    } else if (targetMode === "maximum") {
-      targetReached = finalUint8Array.byteLength <= targetBytes;
-      reason = targetReached ? "PDF compressed below maximum target limit" : "Stream deflated to minimum natural size";
-    } else if (targetMode === "range") {
-      targetReached = Math.abs(finalUint8Array.byteLength - targetBytes) / targetBytes <= 0.1;
-      reason = targetReached ? "Within target range" : "Compressed to optimal structure";
+    } else if (targetMode === "exact") {
+      targetReached = Math.abs(finalUint8Array.byteLength - targetBytes) / targetBytes <= 0.03;
     }
   }
 
